@@ -54,11 +54,39 @@ router.post("/", (req, res) => {
     });
 });
 
+//POST method is used for most login reqests
+// GET method carries the req param appended in the URL string, whereas post method carries the request in the req.body
+// which is more secure in transferring data from client to server.
+router.post("/login", (req, res) => {
+  // expect: {email: "g@gmail.com", passworkd: "password1234"}
+  //user query
+  User.findOne({
+    where: {
+      email: req.body.email,
+    },
+  }).then((dbUserData) => {
+    if (!dbUserData) {
+      res.status(400).json({ message: "No user with that email address!" });
+      return;
+    }
+
+    //user validation
+    const validPassword = dbUserData.checkPassword(req.body.password);
+    if (!validPassword) {
+      res.status(400).json({ message: "Incorrect password!" });
+      return;
+    }
+
+    res.json({ user: dbUserData, message: "You are now logged in!" });
+  });
+});
+
 // PUT /api/users/1
 router.put("/:id", (req, res) => {
   // expects {username: 'g', email: 'g@gmail.com', password: 'password1234'}
   // if req.body has exact key/value pairs to match the model, you can just use `req.body` instead
   User.update(req.body, {
+    individualHooks: true,
     where: {
       id: req.params.id,
     },
