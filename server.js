@@ -13,6 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(routes);
 
 // turn on connection to db and server
+// force -sync : false - will not drop and recreate the database tables
 // force - sync if set to true, it would drop and re-create all of the database tables on startup
 sequelize.sync({ force: false }).then(() => {
   app.listen(PORT, () => console.log("now listening"));
