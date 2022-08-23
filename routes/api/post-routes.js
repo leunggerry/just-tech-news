@@ -1,6 +1,7 @@
 // include express.js api endpoints
 const router = require("express").Router();
-const { Post, User } = require("../../models");
+const { Post, User, Vote } = require("../../models");
+const sequelize = require("../../config/connection");
 
 /* include User Model - to retrieve not only info about each post but also the user 
    that posted it
@@ -11,7 +12,13 @@ router.get("/", (req, res) => {
   console.log("======================");
   Post.findAll({
     // Query config
-    attributes: ["id", "post_url", "title", "created_at"],
+    attributes: [
+      "id",
+      "post_url",
+      "title",
+      "created_at",
+      [sequelize.literal("(SELECT COUNT(*) FROM vote WHERE post.id = vote.post_id)"), "vote_count"],
+    ],
     /*created_at column is auto-generated at the time a post is
     created with the current date and time, thanks to Sequelize. We
     do not need to specify this column or the updated_at column in
@@ -43,7 +50,13 @@ router.get("/:id", (req, res) => {
     where: {
       id: req.params.id,
     },
-    attributes: ["id", "post_url", "title", "created_at"],
+    attributes: [
+      "id",
+      "post_url",
+      "title",
+      "created_at",
+      [sequelize.literal("(SELECT COUNT(*) FROM vote WHERE post.id = vote.post_id)"), "vote_count"],
+    ],
     include: [
       {
         model: User,
@@ -80,6 +93,51 @@ router.post("/", (req, res) => {
       res.status(500).json(err);
     });
 });
+
+//put below post route because /:id routes will think /upvote is valid param of /:id
+//PUT //api/post/upvote
+router.put("/upvote", (req, res) => {
+  //custom static method created in models/Post.js
+  Post.upvote(req.body, { Vote })
+    .then((updatedDbPostData) => res.json(updatedDbPostData))
+    .catch((err) => {
+      console.log(err);
+      res.status(400).json(err);
+    });
+  // Vote.create({
+  //   user_id: req.body.user_id,
+  //   post_id: req.body.post_id,
+  // })
+  //   .then(() => {
+  //     //then find the post we just voted on
+  //     return Post.findOne({
+  //       where: {
+  //         id: req.body.post_id,
+  //       },
+  //       attributes: [
+  //         "id",
+  //         "post_url",
+  //         "title",
+  //         "created_at",
+  //         // use raw mySql aggreate function query to get a count of how many votes the post has and return it under the name 'vote_count'
+  //         [
+  //           sequelize.literal("(SELECT COUNT(*) FROM vote WHERE post.id = vote.post_id)"),
+  //           "vote_count",
+  //         ],
+  //       ],
+  //     })
+  //       .then((dbPostData) => {
+  //         res.json(dbPostData);
+  //       })
+  //       .catch((err) => {
+  //         console.log(err);
+  //         res.status(400).json(err);
+  //       });
+  //   })
+  //   .catch((err) => res.json(err));
+});
+
+//parameter end points
 
 //update post
 // used the req.body.title value to replace the title of the post
@@ -128,4 +186,5 @@ router.delete("/:id", (req, res) => {
       res.status(500).json(err);
     });
 });
+
 module.exports = router;
