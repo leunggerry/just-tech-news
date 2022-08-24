@@ -1,7 +1,7 @@
 // // import the sequelize constructor form the library
-// const Sequelize = require("sequelize");
+const Sequelize = require("sequelize");
 
-// require("dotenv").config();
+require("dotenv").config();
 
 // //create connection to our database, pass in the username and passowrd
 // const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
@@ -10,7 +10,6 @@
 //   port: 3306,
 // });
 
-// module.exports = sequelize;
 let sequelize;
 
 if (process.env.JAWSDB_URL) {
@@ -22,3 +21,5 @@ if (process.env.JAWSDB_URL) {
     port: 3306,
   });
 }
+
+module.exports = sequelize;
