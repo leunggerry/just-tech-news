@@ -1,9 +1,24 @@
 const express = require("express");
-const routes = require("./routes");
+const routes = require("./controllers");
 const sequelize = require("./config/connection");
+//for static file paths
+const path = require("path");
+//app template engine
+const exphbs = require("express-handlebars");
 
+//template engine
+const hbs = exphbs.create({});
+
+// express applicaiton
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+//template enginer settings
+app.engine("handlebars", hbs.engine);
+app.set("view engine", "handlebars");
+
+//for static files in the current dir
+app.use(express.static(path.join(__dirname, "public")));
 
 app.use(express.json());
 //what is extended

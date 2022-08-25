@@ -3,10 +3,12 @@
 // second use of the router.use() for the request to any endpoint that doesnt expist, a 404 eror is returned
 // needed for scaling
 const router = require("express").Router();
+const homeRoutes = require("./home-routes");
 
 const apiRoutes = require("./api");
 
 router.use("/api", apiRoutes);
+router.use("/", homeRoutes);
 
 router.use((req, res) => {
   res.status(404).end();
