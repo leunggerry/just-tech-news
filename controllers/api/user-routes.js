@@ -1,14 +1,9 @@
 const router = require("express").Router();
+const { User, Post, Comment, Vote } = require("../../models");
 
-const { User, Post, Vote } = require("../../models");
-
-// GET /api/users
+// get all users
 router.get("/", (req, res) => {
-  // access our user model and run .findaAll() method
   User.findAll({
-    // passing an object into the method
-    // attributes key and instructed the query to exclude the password column
-    // array as attributes to add more possilbiy
     attributes: { exclude: ["password"] },
   })
     .then((dbUserData) => res.json(dbUserData))
@@ -18,18 +13,17 @@ router.get("/", (req, res) => {
     });
 });
 
-// Get /api/users/1
 router.get("/:id", (req, res) => {
   User.findOne({
-    attributes: {
-      exclude: ["password"],
+    attributes: { exclude: ["password"] },
+    where: {
+      id: req.params.id,
     },
     include: [
       {
         model: Post,
         attributes: ["id", "title", "post_url", "created_at"],
       },
-      // include the Comment model here:
       {
         model: Comment,
         attributes: ["id", "comment_text", "created_at"],
@@ -45,9 +39,6 @@ router.get("/:id", (req, res) => {
         as: "voted_posts",
       },
     ],
-    where: {
-      id: req.params.id,
-    },
   })
     .then((dbUserData) => {
       if (!dbUserData) {
@@ -58,13 +49,12 @@ router.get("/:id", (req, res) => {
     })
     .catch((err) => {
       console.log(err);
-      res.status(500).json;
+      res.status(500).json(err);
     });
 });
 
-// POST /api/users
 router.post("/", (req, res) => {
-  // expects {username: "g", email: "g@gmail.com", password: "passowrd1234"}
+  // expects {username: 'Lernantino', email: 'lernantino@gmail.com', password: 'password1234'}
   User.create({
     username: req.body.username,
     email: req.body.email,
@@ -85,12 +75,8 @@ router.post("/", (req, res) => {
     });
 });
 
-//POST method is used for most login reqests
-// GET method carries the req param appended in the URL string, whereas post method carries the request in the req.body
-// which is more secure in transferring data from client to server.
 router.post("/login", (req, res) => {
-  // expect: {email: "g@gmail.com", passworkd: "password1234"}
-  //user query
+  // expects {email: 'lernantino@gmail.com', password: 'password1234'}
   User.findOne({
     where: {
       email: req.body.email,
@@ -101,15 +87,14 @@ router.post("/login", (req, res) => {
       return;
     }
 
-    //user validation
     const validPassword = dbUserData.checkPassword(req.body.password);
+
     if (!validPassword) {
       res.status(400).json({ message: "Incorrect password!" });
       return;
     }
 
     req.session.save(() => {
-      // declare session variables
       req.session.user_id = dbUserData.id;
       req.session.username = dbUserData.username;
       req.session.loggedIn = true;
@@ -119,10 +104,20 @@ router.post("/login", (req, res) => {
   });
 });
 
-// PUT /api/users/1
+router.post("/logout", (req, res) => {
+  if (req.session.loggedIn) {
+    req.session.destroy(() => {
+      res.status(204).end();
+    });
+  } else {
+    res.status(404).end();
+  }
+});
+
 router.put("/:id", (req, res) => {
-  // expects {username: 'g', email: 'g@gmail.com', password: 'password1234'}
-  // if req.body has exact key/value pairs to match the model, you can just use `req.body` instead
+  // expects {username: 'Lernantino', email: 'lernantino@gmail.com', password: 'password1234'}
+
+  // pass in req.body instead to only update what's passed through
   User.update(req.body, {
     individualHooks: true,
     where: {
@@ -130,8 +125,8 @@ router.put("/:id", (req, res) => {
     },
   })
     .then((dbUserData) => {
-      if (!dbUserData[0]) {
-        res.status(404).json({ message: "no user found with this id" });
+      if (!dbUserData) {
+        res.status(404).json({ message: "No user found with this id" });
         return;
       }
       res.json(dbUserData);
@@ -142,7 +137,6 @@ router.put("/:id", (req, res) => {
     });
 });
 
-// Delete /api/users/1
 router.delete("/:id", (req, res) => {
   User.destroy({
     where: {
@@ -162,15 +156,4 @@ router.delete("/:id", (req, res) => {
     });
 });
 
-//logout option
-router.post("/logout", (req, res) => {
-  // destroy the ssions variables and reset the cookie
-  if (req.session.loggedIn) {
-    req.session.destroy(() => {
-      res.status(204).end();
-    });
-  } else {
-    res.status(404).end();
-  }
-});
 module.exports = router;

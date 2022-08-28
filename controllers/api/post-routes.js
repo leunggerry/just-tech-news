@@ -1,17 +1,11 @@
-// include express.js api endpoints
 const router = require("express").Router();
-const { Post, User, Vote, Comment } = require("../../models");
 const sequelize = require("../../config/connection");
-
-/* include User Model - to retrieve not only info about each post but also the user 
-   that posted it
-*/
+const { Post, User, Comment, Vote } = require("../../models");
 
 // get all users
 router.get("/", (req, res) => {
   console.log("======================");
   Post.findAll({
-    // Query config
     attributes: [
       "id",
       "post_url",
@@ -19,17 +13,7 @@ router.get("/", (req, res) => {
       "created_at",
       [sequelize.literal("(SELECT COUNT(*) FROM vote WHERE post.id = vote.post_id)"), "vote_count"],
     ],
-    /*created_at column is auto-generated at the time a post is
-    created with the current date and time, thanks to Sequelize. We
-    do not need to specify this column or the updated_at column in
-     the model definition, because Sequelize will timestamp these 
-     fields by default unless we configure Sequelize not to.
-     */
-    //set the order property
-    order: [["created_at", "DESC"]],
-    // include the JOIN to the User table
     include: [
-      // include the Comment model here:
       {
         model: Comment,
         attributes: ["id", "comment_text", "post_id", "user_id", "created_at"],
@@ -51,9 +35,6 @@ router.get("/", (req, res) => {
     });
 });
 
-// get a single post
-// use only findOne
-// retreive username in the user by using the include property
 router.get("/:id", (req, res) => {
   Post.findOne({
     where: {
@@ -94,15 +75,12 @@ router.get("/:id", (req, res) => {
     });
 });
 
-//create a post
-// user req.body to populate the columns in the post table
-// create_at and update_at constraints stated that fields cannot be NOT NULL
-// SEQUELIZE includes CURRENT_TIMESTAMP
 router.post("/", (req, res) => {
+  // expects {title: 'Taskmaster goes public!', post_url: 'https://taskmaster.com/press', user_id: 1}
   Post.create({
     title: req.body.title,
     post_url: req.body.post_url,
-    user_id: req.body.user_id,
+    user_id: req.session.user_id,
   })
     .then((dbPostData) => res.json(dbPostData))
     .catch((err) => {
@@ -111,54 +89,20 @@ router.post("/", (req, res) => {
     });
 });
 
-//put below post route because /:id routes will think /upvote is valid param of /:id
-//PUT //api/post/upvote
 router.put("/upvote", (req, res) => {
-  //custom static method created in models/Post.js
-  Post.upvote(req.body, { Vote })
-    .then((updatedDbPostData) => res.json(updatedDbPostData))
-    .catch((err) => {
-      console.log(err);
-      res.status(400).json(err);
-    });
-  // Vote.create({
-  //   user_id: req.body.user_id,
-  //   post_id: req.body.post_id,
-  // })
-  //   .then(() => {
-  //     //then find the post we just voted on
-  //     return Post.findOne({
-  //       where: {
-  //         id: req.body.post_id,
-  //       },
-  //       attributes: [
-  //         "id",
-  //         "post_url",
-  //         "title",
-  //         "created_at",
-  //         // use raw mySql aggreate function query to get a count of how many votes the post has and return it under the name 'vote_count'
-  //         [
-  //           sequelize.literal("(SELECT COUNT(*) FROM vote WHERE post.id = vote.post_id)"),
-  //           "vote_count",
-  //         ],
-  //       ],
-  //     })
-  //       .then((dbPostData) => {
-  //         res.json(dbPostData);
-  //       })
-  //       .catch((err) => {
-  //         console.log(err);
-  //         res.status(400).json(err);
-  //       });
-  //   })
-  //   .catch((err) => res.json(err));
+  // make sure the session exists
+  if (req.session) {
+    // pass session id along with all desctructured properties
+    // custom static method created in models/Post.js
+    Post.upvote({ ...req.body, user_id: req.session.user_id }, { Vote, Comment, User })
+      .then((updatedVoteData) => res.json(updatedVoteData))
+      .catch((err) => {
+        console.log(err);
+        res.status(500).json(err);
+      });
+  }
 });
 
-//parameter end points
-
-//update post
-// used the req.body.title value to replace the title of the post
-//
 router.put("/:id", (req, res) => {
   Post.update(
     {
@@ -183,9 +127,8 @@ router.put("/:id", (req, res) => {
     });
 });
 
-//Delete a post
-// the response displays the number of rows or entries that were affected by the query
 router.delete("/:id", (req, res) => {
+  console.log("id", req.params.id);
   Post.destroy({
     where: {
       id: req.params.id,
